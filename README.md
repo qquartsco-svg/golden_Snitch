@@ -1,7 +1,7 @@
 # Drone_Robot_Adapter
 
 > **한국어 (정본).**
-> **v0.1.1** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
+> **v0.1.2** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
 
 이 패키지는 [Drone_Control_Foundation](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Control_Foundation/README.md)이 내보내는
 `MixerIntent` / actuator intent를 **실제 벤더 FCU/ESC transport 계층**으로 연결하는
@@ -97,6 +97,32 @@ Drone_Robot_Adapter/
 
 ---
 
+## actuator_intent 계약 필드
+
+이 패키지가 읽는 입력은 항상 DCF가 만든 actuator intent다.
+
+| 필드 | 구분 | 의미 |
+|------|------|------|
+| `schema_version` | 필수 | 현재 intent 계약 버전 |
+| `primary_output_0_1` | 필수 | collective/thrust ceiling의 공통 1차 출력 |
+| `motor_thrust_0_1` | 필수 | 4축 모터 정규화 추력 |
+| `mission_pause` | 필수 | 상위 안전/운용 계층이 미션 정지를 요구하는지 |
+| `estop_recommended` | 필수 | 즉시 안전 정지 권고 |
+| `step_id` | 보존 | 현재 스텝/시퀀스 식별자 |
+| `flow_id` | 보존 | 상위 플로우/세션 식별자 |
+| `transport_hint` | 선택 | 하위 제품층이 참고할 transport 힌트 |
+
+정리하면:
+- **필수 필드**: 제어/안전 의미를 가진 공통 분모
+- **보존 필드**: 운용 추적과 감사에 필요한 흐름 정보
+- **선택 필드**: 실제 벤더 바인딩이 참고하는 제품층 힌트
+
+상세 매핑은
+[PX4_ARDUPILOT_MAPPING.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/PX4_ARDUPILOT_MAPPING.md)
+를 기준으로 본다.
+
+---
+
 ## Nexus와의 관계
 
 이 패키지는 `Nexus`를 제어기로 보지 않는다.
@@ -108,6 +134,24 @@ Drone_Robot_Adapter/
 
 벤더 envelope 매핑 표:
 [PX4_ARDUPILOT_MAPPING.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/PX4_ARDUPILOT_MAPPING.md)
+
+---
+
+## Watchdog 건강도 기준
+
+`BindingWatchdog` 는 제어 품질을 평가하지 않고,
+**벤더 바인딩의 생존성/연속성**만 본다.
+
+권장 해석:
+
+| 상태 | 기준 예시 | 의미 |
+|------|-----------|------|
+| `healthy` | `link_alive=True`, `driver_fault=False`, `heartbeat_age_s <= stale_after_s` | 바인딩 계층이 정상 응답 중 |
+| `stale` | `heartbeat_age_s > stale_after_s` | 하트비트가 늦어져 상위가 주의해야 함 |
+| `degraded` | `driver_fault=True` 또는 `link_alive=False` | transport 계층 이상, 상위 pause/estop 판단 필요 |
+
+즉 watchdog은 “기체가 잘 날고 있는가”가 아니라
+“**하드웨어 바인딩이 아직 살아 있는가**”를 본다.
 
 ---
 
@@ -157,6 +201,31 @@ python3 examples/run_nexus_drone_brief.py
 
 ---
 
+## 활용성
+
+이 패키지는 다음 같은 경우에 바로 쓸 수 있다.
+
+- DCF에서 계산된 intent를 PX4/ArduPilot 쪽 제품층 envelope로 넘길 때
+- 시뮬레이터/하드웨어랩에서 `mission_pause`, `estop`, `flow_id` 같은 운용 필드를 보존하고 싶을 때
+- `Nexus`가 드론 상태를 한 줄 briefing으로 읽어야 할 때
+- 추후 private/vendor 패키지에서 실제 MAVLink/PWM/CAN 드라이버를 붙이기 전에 공통 경계를 고정하고 싶을 때
+
+---
+
+## 확장 방향
+
+가장 자연스러운 다음 단계는 이 순서다.
+
+1. `PX4` / `ArduPilot` 실 transport stub 고도화
+2. `PWM` / `CAN ESC` envelope 추가
+3. watchdog에 link timeout / heartbeat jitter / reconnect 상태 추가
+4. `Nexus`에서 읽을 executive brief 포맷 확장
+5. private repository에서 실제 벤더 SDK 바인딩 구현
+
+중요한 점은, 이 확장은 **DCF 안이 아니라 이 패키지 위/안에서만** 진행돼야 한다는 것이다.
+
+---
+
 ## 무결성
 
 - [BLOCKCHAIN_INFO.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/BLOCKCHAIN_INFO.md)
@@ -177,6 +246,15 @@ python3 scripts/release_check.py
 
 ---
 
+## 정본 문서
+
+루트 README는 개요다. 실제 제품 판단에는 아래 두 문서를 우선 기준으로 읽는 것이 좋다.
+
+- [PX4_ARDUPILOT_MAPPING.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/PX4_ARDUPILOT_MAPPING.md)
+- [NEXUS_CONSUMPTION.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/NEXUS_CONSUMPTION.md)
+
+---
+
 ## 테스트
 
 ```bash
@@ -189,4 +267,4 @@ python3 examples/run_nexus_drone_brief.py
 
 ## 버전
 
-`0.1.1` — 공개 README 상세화, 무결성 번들, release scripts, watchdog/Nexus 데모 마감.
+`0.1.2` — 계약 필드 표, watchdog 건강도 기준, 활용/확장/정본 문서 설명 보강.

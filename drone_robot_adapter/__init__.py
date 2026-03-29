@@ -23,4 +23,4 @@ __all__ = [
     "render_nexus_drone_lines",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"

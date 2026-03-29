@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.2
+
+- README 보강:
+  - actuator intent 계약 필드 표
+  - watchdog 건강도 기준
+  - 활용성 / 확장 방향
+  - 정본 문서 위치 강조
+- 문서 기준으로 `Drone_Robot_Adapter`의 정체성을 더 명확화:
+  - DCF 밖의 제품형 HAL 경계
+  - Nexus는 소비자/보고 계층
+  - 실제 MAVLink/PWM/CAN 바인딩은 후속 제품층
+
 ## 0.1.1
 
 - README를 공개 레포 수준으로 상세화: 아키텍처, 역할 경계, 공개 API, 벤더 바인딩 위치, Nexus 소비 방향, 무결성 절차 정리.
