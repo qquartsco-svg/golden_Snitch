@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- README: 로컬 절대 경로(`/Users/...`) 제거 → 저장소 상대 링크 + GitHub 공개 쌍(`Drone_Control_Foundation` · `Drone_Robot_Adapter`) 안내.
+- `PHAM_BLOCKCHAIN_LOG`: 공개 원격을 **`qquartsco-svg/Drone_Robot_Adapter`** 로 명시(과거 `golden_Snitch` 오연결 복구 안내).
+- 로컬 `git` 권장: `origin` = `https://github.com/qquartsco-svg/Drone_Robot_Adapter.git` (제어 코어와 저장소 분리).
+
 ## 0.1.2
 
 - README 보강:

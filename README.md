@@ -1,9 +1,12 @@
 # Drone_Robot_Adapter
 
 > **한국어 (정본).**
-> **v0.1.2** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
+> **v0.1.3** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
 
-이 패키지는 [Drone_Control_Foundation](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Control_Foundation/README.md)이 내보내는
+**GitHub 공개 쌍 (정렬):** 제어 코어 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) · 본 HAL 어댑터 [Drone_Robot_Adapter](https://github.com/qquartsco-svg/Drone_Robot_Adapter)  
+*(과거 로컬 원격이 `golden_Snitch` 등으로 꼬여 있으면 `git remote -v` 확인 후 `origin` 을 위 저장소로 맞출 것.)*
+
+이 패키지는 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) 이보내는
 `MixerIntent` / actuator intent를 **실제 벤더 FCU/ESC transport 계층**으로 연결하는
 드론 도메인 HAL 제품층 스캐폴드다.
 
@@ -117,9 +120,7 @@ Drone_Robot_Adapter/
 - **보존 필드**: 운용 추적과 감사에 필요한 흐름 정보
 - **선택 필드**: 실제 벤더 바인딩이 참고하는 제품층 힌트
 
-상세 매핑은
-[PX4_ARDUPILOT_MAPPING.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/PX4_ARDUPILOT_MAPPING.md)
-를 기준으로 본다.
+상세 매핑은 [docs/PX4_ARDUPILOT_MAPPING.md](docs/PX4_ARDUPILOT_MAPPING.md) 를 기준으로 본다.
 
 ---
 
@@ -128,12 +129,9 @@ Drone_Robot_Adapter/
 이 패키지는 `Nexus`를 제어기로 보지 않는다.
 `Nexus`는 상위 orchestration이고, 여기서는 **drone runtime 상태를 읽기 좋은 외부 신호로 요약**만 한다.
 
-상세 연결 방향은
-[NEXUS_CONSUMPTION.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/NEXUS_CONSUMPTION.md)
-를 따른다.
+상세 연결 방향은 [docs/NEXUS_CONSUMPTION.md](docs/NEXUS_CONSUMPTION.md) 를 따른다.
 
-벤더 envelope 매핑 표:
-[PX4_ARDUPILOT_MAPPING.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/PX4_ARDUPILOT_MAPPING.md)
+벤더 envelope 매핑 표: [docs/PX4_ARDUPILOT_MAPPING.md](docs/PX4_ARDUPILOT_MAPPING.md)
 
 ---
 
@@ -228,9 +226,9 @@ python3 examples/run_nexus_drone_brief.py
 
 ## 무결성
 
-- [BLOCKCHAIN_INFO.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/BLOCKCHAIN_INFO.md)
-- [PHAM_BLOCKCHAIN_LOG.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/PHAM_BLOCKCHAIN_LOG.md)
-- [SIGNATURE.sha256](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/SIGNATURE.sha256)
+- [BLOCKCHAIN_INFO.md](BLOCKCHAIN_INFO.md)
+- [PHAM_BLOCKCHAIN_LOG.md](PHAM_BLOCKCHAIN_LOG.md)
+- [SIGNATURE.sha256](SIGNATURE.sha256)
 
 검증:
 
@@ -250,21 +248,24 @@ python3 scripts/release_check.py
 
 루트 README는 개요다. 실제 제품 판단에는 아래 두 문서를 우선 기준으로 읽는 것이 좋다.
 
-- [PX4_ARDUPILOT_MAPPING.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/PX4_ARDUPILOT_MAPPING.md)
-- [NEXUS_CONSUMPTION.md](/Users/jazzin/Desktop/00_BRAIN/_staging/Drone_Robot_Adapter/docs/NEXUS_CONSUMPTION.md)
+- [docs/PX4_ARDUPILOT_MAPPING.md](docs/PX4_ARDUPILOT_MAPPING.md)
+- [docs/NEXUS_CONSUMPTION.md](docs/NEXUS_CONSUMPTION.md)
 
 ---
 
 ## 테스트
 
+저장소 루트(클론 디렉터리)에서:
+
 ```bash
-cd _staging/Drone_Robot_Adapter
 python3 -m pytest tests/ -q
 python3 examples/run_nexus_drone_brief.py
 ```
+
+00_BRAIN 모노레포 안에서만 작업할 때는 `cd _staging/Drone_Robot_Adapter` 후 위와 동일.
 
 ---
 
 ## 버전
 
-`0.1.2` — 계약 필드 표, watchdog 건강도 기준, 활용/확장/정본 문서 설명 보강.
+`0.1.3` — README/GitHub 링크 복구, 공개 원격 저장소명 정렬(`Drone_Robot_Adapter`).
