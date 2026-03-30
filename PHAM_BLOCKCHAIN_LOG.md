@@ -1,5 +1,10 @@
 # PHAM_BLOCKCHAIN_LOG
 
+## 0.1.5
+
+- `Drone_Control_Foundation/` **커밋·푸시 포함**(이전 README만 수정하고 트리 미추적이던 문제 종료).
+- 루트 README: **golden_Snitch** = 합본 정본 명시.
+
 ## 0.1.4
 
 - `git` 원격 복구: **`origin` = `qquartsco-svg/golden_Snitch`** (DCF URL로 잡혀 있던 사고 방지 문서화).

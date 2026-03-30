@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- **golden_Snitch = DCF + Drone_Robot_Adapter**: `Drone_Control_Foundation/` 트리를 **Git에 포함**해 한 저장소로 푸시 (이전엔 로컬만 있고 커밋 안 된 상태였음).
+- 루트 README 를 **`# golden_Snitch`** 정본으로 재정리; 별도 레포 안내 제거.
+- `.gitignore`: DCF 하위 `pytest` 캐시 제외.
+
 ## 0.1.4
 
 - **중요:** 로컬 `git` 원격 `origin` 이 실수로 `Drone_Control_Foundation` 을 가리키면 어댑터 커밋이 DCF로 푸시되어 GitHub에 반영되지 않는다. 공개 저장소는 **`qquartsco-svg/golden_Snitch`** — `git remote set-url origin https://github.com/qquartsco-svg/golden_Snitch.git`.

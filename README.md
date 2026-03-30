@@ -1,41 +1,35 @@
-# Drone_Robot_Adapter
+# golden_Snitch
 
-> **한국어 (정본).**
-> **v0.1.4** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
+> **한국어 (정본).**  
+> GitHub 저장소 이름이 **`golden_Snitch`** 이고, 그 안에 **둘을 합쳐 둔 것**이 전부다.
 
-**GitHub 공개 저장소:** 이 패키지 코드는 저장소 **[qquartsco-svg/golden_Snitch](https://github.com/qquartsco-svg/golden_Snitch)** 에 올린다. (로컬 폴더명 `Drone_Robot_Adapter` 와 다를 수 있음.)  
-제어 코어(DCF)는 별도 저장소 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) — `git remote -v` 로 **어댑터 폴더의 `origin` 이 `golden_Snitch` 인지** 반드시 확인할 것. `Drone_Control_Foundation` 으로 잡혀 있으면 푸시가 꼬인다.
+| 구성요소 (이름) | 이 저장소 안 경로 | 하는 일 |
+|----------------|------------------|---------|
+| **Drone_Control_Foundation** | [`Drone_Control_Foundation/`](Drone_Control_Foundation/README.md) | 제어 코어 — 상태·세트포인트, 아비터, 믹서, 참조 플랜트 |
+| **Drone_Robot_Adapter** | `drone_robot_adapter/` (루트) | HAL — DCF가 낸 `MixerIntent`/actuator intent → PX4·ArduPilot·벤더 transport |
 
-이 패키지는 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) 이보내는
-`MixerIntent` / actuator intent를 **실제 벤더 FCU/ESC transport 계층**으로 연결하는
-드론 도메인 HAL 제품층 스캐폴드다.
+**푸시:** `git push origin main` 은 **[qquartsco-svg/golden_Snitch](https://github.com/qquartsco-svg/golden_Snitch)** 만 보면 된다.  
+`git remote -v` 에 `origin` 이 `golden_Snitch` 인지 확인. (다른 URL이면 여기로 안 올라간다.)
 
-DCF 안에는 PX4, MAVLink, PWM, CAN, ArduPilot SDK를 넣지 않는다.
-실제 하드웨어 바인딩은 **여기**에서만 붙인다.
-
----
-
-## 한 줄 정의
-
-`Drone_Robot_Adapter` 는 **제어 코어(DCF)와 실제 드론 FCU/ESC transport 사이의 유일한 권장 제품층 경계**다.
+**의존:** 어댑터는 `Robot_Adapter_Core` 등이 필요할 수 있다. DCF 쪽 전체 테스트도 동일. 상세는 각 폴더 `README.md`.
 
 ---
 
-## 아키텍처 위치
+## 아키텍처 (한 줄 흐름)
 
 ```text
-Drone_Control_Foundation
-    -> MixerIntent / build_drone_actuator_intent()
-    -> Drone_Robot_Adapter
-        -> PX4 command envelope
-        -> ArduPilot command envelope
-        -> vendor watchdog / heartbeat
-    -> vendor FCU / ESC / CAN / PWM
+Drone_Control_Foundation (제어)
+    -> MixerIntent / actuator intent
+    -> Drone_Robot_Adapter (HAL)
+        -> PX4 / ArduPilot envelope, watchdog
+    -> 실제 FCU / ESC / PWM / CAN
 ```
+
+DCF 안에는 PX4·MAVLink·PWM·CAN·ArduPilot SDK를 넣지 않는다. 실제 하드웨어 바인딩은 **어댑터 층**에서만 붙인다.
 
 ---
 
-## 왜 별도 패키지인가
+## 왜 저장소 하나에 폴더가 두 개인가
 
 | 이유 | 설명 |
 |------|------|
@@ -46,32 +40,24 @@ Drone_Control_Foundation
 
 ---
 
-## 패키지 구조
+## 저장소 디렉터리 구조 (요약)
 
 ```text
-Drone_Robot_Adapter/
-├── drone_robot_adapter/
-│   ├── __init__.py
-│   ├── contracts.py
-│   ├── px4_bridge.py
-│   ├── ardupilot_bridge.py
-│   ├── nexus_bridge.py
-│   └── watchdog.py
-├── docs/
-│   ├── NEXUS_CONSUMPTION.md
-│   └── PX4_ARDUPILOT_MAPPING.md
+golden_Snitch/   ← GitHub 저장소 루트
+├── Drone_Control_Foundation/     ← 제어 코어 (전본)
+│   ├── drone_control_foundation/
+│   ├── tests/
+│   └── README.md
+├── drone_robot_adapter/          ← HAL (루트 패키지)
+├── docs/                         ← 어댑터 전용 문서
 ├── scripts/
-│   ├── regenerate_signature.py
-│   ├── verify_signature.py
-│   ├── cleanup_generated.py
-│   └── release_check.py
-└── tests/
-    └── test_drone_robot_adapter.py
+├── tests/                        ← 어댑터 테스트
+└── README.md                     ← 이 파일 (번들 안내)
 ```
 
 ---
 
-## 이 패키지가 하는 일
+## Drone_Robot_Adapter 가 하는 일
 
 - DCF actuator intent를 벤더 transport envelope로 바꾼다.
 - `mission_pause`, `estop`, `step_id`, `flow_id` 같은 운용 필드를 보존한다.
@@ -255,17 +241,20 @@ python3 scripts/release_check.py
 
 ## 테스트
 
-저장소 루트(클론 디렉터리)에서:
-
 ```bash
+# 어댑터 (루트)
 python3 -m pytest tests/ -q
+
+# DCF — `Robot_Adapter_Core` 설치 후 (Drone_Control_Foundation/README.md 참고)
+# (cd Drone_Control_Foundation && python3 -m pytest tests/ -q)
+
 python3 examples/run_nexus_drone_brief.py
 ```
 
-00_BRAIN 모노레포 안에서만 작업할 때는 `cd _staging/Drone_Robot_Adapter` 후 위와 동일.
-
 ---
 
-## 버전
+## 번들 메타
 
-`0.1.4` — `origin` 을 실제 공개 저장소 `golden_Snitch` 로 고정, README·PHAM 정본.
+루트 `VERSION` / `pyproject.toml` 은 **어댑터 패키지** 기준이다. DCF 버전은 `Drone_Control_Foundation/VERSION` 을 본다.
+
+`0.1.5` — **golden_Snitch = DCF + Drone_Robot_Adapter** 를 한 저장소에 포함; README 정본 정리.
