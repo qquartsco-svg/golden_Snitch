@@ -1,5 +1,14 @@
 # PHAM_BLOCKCHAIN_LOG
 
+## 0.1.6
+
+- **DCF→DRA 통합 파이프라인 완성**: 두 레이어가 actuator intent 계약 경계로 연결되어 전 구간 동작 검증 완료.
+  - `examples/run_dcf_dra_integration.py`: altitude_hold → PX4, 지오펜스 이탈 → ArduPilot, watchdog → Nexus signal 3시나리오.
+  - `tests/test_dcf_dra_integration.py`: 24개 통합 테스트 전 PASS.
+- README 전면 개정: 아키텍처 흐름, 계약 경계, 통합 예제, 두 레이어 역할 명확화.
+- `SIGNATURE.sha256` 재생성 — 릴리스 무결성 최신화.
+- 변경 파일 해시: `examples/run_dcf_dra_integration.py`, `tests/test_dcf_dra_integration.py`, `tests/conftest.py`, `VERSION`, `pyproject.toml`, `CHANGELOG.md`, `README.md`, `drone_robot_adapter/__init__.py`.
+
 ## 0.1.5
 
 - `Drone_Control_Foundation/` **커밋·푸시 포함**(이전 README만 수정하고 트리 미추적이던 문제 종료).

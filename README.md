@@ -1,260 +1,294 @@
 # golden_Snitch
 
-> **한국어 (정본).**  
-> GitHub 저장소 이름이 **`golden_Snitch`** 이고, 그 안에 **둘을 합쳐 둔 것**이 전부다.
+**저장소:** [`qquartsco-svg/golden_Snitch`](https://github.com/qquartsco-svg/golden_Snitch)
+**버전:** 0.1.6
+**구성:** `Drone_Control_Foundation` (제어 코어) + `Drone_Robot_Adapter` (HAL)
 
-| 구성요소 (이름) | 이 저장소 안 경로 | 하는 일 |
-|----------------|------------------|---------|
-| **Drone_Control_Foundation** | [`Drone_Control_Foundation/`](Drone_Control_Foundation/README.md) | 제어 코어 — 상태·세트포인트, 아비터, 믹서, 참조 플랜트 |
-| **Drone_Robot_Adapter** | `drone_robot_adapter/` (루트) | HAL — DCF가 낸 `MixerIntent`/actuator intent → PX4·ArduPilot·벤더 transport |
-
-**푸시:** `git push origin main` 은 **[qquartsco-svg/golden_Snitch](https://github.com/qquartsco-svg/golden_Snitch)** 만 보면 된다.  
-`git remote -v` 에 `origin` 이 `golden_Snitch` 인지 확인. (다른 URL이면 여기로 안 올라간다.)
-
-**의존:** 어댑터는 `Robot_Adapter_Core` 등이 필요할 수 있다. DCF 쪽 전체 테스트도 동일. 상세는 각 폴더 `README.md`.
+> **한 저장소, 두 레이어.**
+> 드론 제어 연산과 하드웨어 바인딩을 명확한 계약 경계로 분리한다.
+> DCF가 "무엇을 해야 하는가"를 계산하고, DRA가 "어떻게 전달하는가"를 처리한다.
 
 ---
 
-## 아키텍처 (한 줄 흐름)
+## 레이어 구성
 
-```text
-Drone_Control_Foundation (제어)
-    -> MixerIntent / actuator intent
-    -> Drone_Robot_Adapter (HAL)
-        -> PX4 / ArduPilot envelope, watchdog
-    -> 실제 FCU / ESC / PWM / CAN
+| 레이어 | 경로 | 역할 |
+|--------|------|------|
+| **Drone_Control_Foundation (DCF)** | [`Drone_Control_Foundation/`](Drone_Control_Foundation/README.md) | 제어 코어 — 상태·세트포인트, 안전 아비터, 쿼드-X 믹서, 참조 플랜트, 건강도 옵저버 |
+| **Drone_Robot_Adapter (DRA)** | `drone_robot_adapter/` (루트 패키지) | HAL — DCF actuator intent → PX4·ArduPilot envelope, watchdog, Nexus signal |
+
+---
+
+## 아키텍처: 한 줄 흐름
+
+```
+센서 입력 (DroneState)
+    → Drone_Control_Foundation
+        · evaluate_control_arbitration()   : 안전 게이트 (지오펜스, 배터리, estop)
+        · run_control_tick()               : 고도/요/수평 제어 계산
+        · quad_x_mix()                     : 4축 모터 믹서
+        → MixerIntent  →  build_drone_actuator_intent()
+    ──────────────── actuator intent dict (계약 경계) ─────────────────
+    → Drone_Robot_Adapter
+        · build_px4_command_envelope()     : PX4 transport envelope
+        · build_ardupilot_command_envelope(): ArduPilot transport envelope
+        · BindingWatchdog.snapshot()       : HAL 생존 확인
+        · build_nexus_drone_signal()       : 상위 orchestration 브리핑
+    → PX4 / ArduPilot FCU · ESC · PWM · CAN
 ```
 
-DCF 안에는 PX4·MAVLink·PWM·CAN·ArduPilot SDK를 넣지 않는다. 실제 하드웨어 바인딩은 **어댑터 층**에서만 붙인다.
+**계약 경계 (`actuator intent dict`)** 는 두 레이어가 공유하는 유일한 인터페이스다.
+DCF는 DRA 내부를 모르고, DRA는 DCF 제어 로직을 모른다.
 
 ---
 
-## 왜 저장소 하나에 폴더가 두 개인가
-
-| 이유 | 설명 |
-|------|------|
-| 책임 분리 | `Drone_Control_Foundation` 는 제어 계산, 여기는 하드웨어/transport 표현 |
-| 벤더 교체 | PX4, ArduPilot, PWM, CAN, 커스텀 FCU를 어댑터만 바꿔 교체 |
-| 감사/추적 | actuator intent 계약과 실제 transport 바인딩을 분리 |
-| 상위 orchestration | `Nexus`는 하위 제어를 직접 계산하지 않고, 이 층이 내는 외부 신호를 읽음 |
-
----
-
-## 저장소 디렉터리 구조 (요약)
-
-```text
-golden_Snitch/   ← GitHub 저장소 루트
-├── Drone_Control_Foundation/     ← 제어 코어 (전본)
-│   ├── drone_control_foundation/
-│   ├── tests/
-│   └── README.md
-├── drone_robot_adapter/          ← HAL (루트 패키지)
-├── docs/                         ← 어댑터 전용 문서
-├── scripts/
-├── tests/                        ← 어댑터 테스트
-└── README.md                     ← 이 파일 (번들 안내)
-```
-
----
-
-## Drone_Robot_Adapter 가 하는 일
-
-- DCF actuator intent를 벤더 transport envelope로 바꾼다.
-- `mission_pause`, `estop`, `step_id`, `flow_id` 같은 운용 필드를 보존한다.
-- 상위 orchestration(`Nexus`)가 읽을 수 있는 간단한 drone signal/brief를 만든다.
-
-## 하지 않는 일
-
-- 실제 MAVLink 연결
-- 실제 PWM/CAN 전송
-- 비행 제어 계산
-- 센서 융합 / EKF
-
----
-
-## 공개 API
-
-- `PX4CommandEnvelope`
-- `ArduPilotCommandEnvelope`
-- `VendorBindingHealthSnapshot`
-- `build_px4_command_envelope()`
-- `build_ardupilot_command_envelope()`
-- `DroneAdapterNexusSignal`
-- `build_nexus_drone_signal()`
-- `render_nexus_drone_lines()`
-- `BindingWatchdog`
-
----
-
-## actuator_intent 계약 필드
-
-이 패키지가 읽는 입력은 항상 DCF가 만든 actuator intent다.
+## 계약 경계: actuator intent 필드
 
 | 필드 | 구분 | 의미 |
 |------|------|------|
-| `schema_version` | 필수 | 현재 intent 계약 버전 |
-| `primary_output_0_1` | 필수 | collective/thrust ceiling의 공통 1차 출력 |
-| `motor_thrust_0_1` | 필수 | 4축 모터 정규화 추력 |
-| `mission_pause` | 필수 | 상위 안전/운용 계층이 미션 정지를 요구하는지 |
+| `schema_version` | 필수 | 현재 계약 버전 (`drone_actuator_intent.v0.1`) |
+| `primary_output_0_1` | 필수 | collective/thrust 1차 출력 [0, 1] |
+| `motor_thrust_0_1` | 필수 | 4축 모터 정규화 추력 tuple |
+| `allow_motion` | 필수 | 실제 움직임 허용 여부 |
+| `mission_pause` | 필수 | 상위 안전 계층의 미션 정지 요구 |
 | `estop_recommended` | 필수 | 즉시 안전 정지 권고 |
-| `step_id` | 보존 | 현재 스텝/시퀀스 식별자 |
-| `flow_id` | 보존 | 상위 플로우/세션 식별자 |
-| `transport_hint` | 선택 | 하위 제품층이 참고할 transport 힌트 |
-
-정리하면:
-- **필수 필드**: 제어/안전 의미를 가진 공통 분모
-- **보존 필드**: 운용 추적과 감사에 필요한 흐름 정보
-- **선택 필드**: 실제 벤더 바인딩이 참고하는 제품층 힌트
-
-상세 매핑은 [docs/PX4_ARDUPILOT_MAPPING.md](docs/PX4_ARDUPILOT_MAPPING.md) 를 기준으로 본다.
+| `step_id` | 보존 | 스텝/시퀀스 식별자 (운용 추적) |
+| `flow_id` | 보존 | 플로우/세션 식별자 (감사) |
+| `transport_hint` | 선택 | 하위 벤더 바인딩 참고용 transport 힌트 |
 
 ---
 
-## Nexus와의 관계
+## 빠른 시작: 통합 파이프라인
 
-이 패키지는 `Nexus`를 제어기로 보지 않는다.
-`Nexus`는 상위 orchestration이고, 여기서는 **drone runtime 상태를 읽기 좋은 외부 신호로 요약**만 한다.
+### 설치 (로컬 개발)
 
-상세 연결 방향은 [docs/NEXUS_CONSUMPTION.md](docs/NEXUS_CONSUMPTION.md) 를 따른다.
-
-벤더 envelope 매핑 표: [docs/PX4_ARDUPILOT_MAPPING.md](docs/PX4_ARDUPILOT_MAPPING.md)
-
----
-
-## Watchdog 건강도 기준
-
-`BindingWatchdog` 는 제어 품질을 평가하지 않고,
-**벤더 바인딩의 생존성/연속성**만 본다.
-
-권장 해석:
-
-| 상태 | 기준 예시 | 의미 |
-|------|-----------|------|
-| `healthy` | `link_alive=True`, `driver_fault=False`, `heartbeat_age_s <= stale_after_s` | 바인딩 계층이 정상 응답 중 |
-| `stale` | `heartbeat_age_s > stale_after_s` | 하트비트가 늦어져 상위가 주의해야 함 |
-| `degraded` | `driver_fault=True` 또는 `link_alive=False` | transport 계층 이상, 상위 pause/estop 판단 필요 |
-
-즉 watchdog은 “기체가 잘 날고 있는가”가 아니라
-“**하드웨어 바인딩이 아직 살아 있는가**”를 본다.
-
----
-
-## 빠른 사용
-
-### DCF actuator intent -> PX4 envelope
-
-```python
-from drone_robot_adapter import build_px4_command_envelope
-
-env = build_px4_command_envelope(
-    {
-        "schema_version": "drone_actuator_intent.v0.1",
-        "primary_output_0_1": 0.62,
-        "motor_thrust_0_1": (0.60, 0.61, 0.63, 0.64),
-        "mission_pause": False,
-        "estop_recommended": False,
-        "step_id": "hover",
-        "flow_id": "demo",
-        "transport_hint": "pwm_normalized",
-    }
-)
-print(env.transport)
+```bash
+git clone https://github.com/qquartsco-svg/golden_Snitch.git
+cd golden_Snitch
+# Robot_Adapter_Core가 ../Robot_Adapter_Core 에 있으면 자동 인식
 ```
 
-### Watchdog -> Nexus signal
+### DCF → DRA 전체 파이프라인
 
 ```python
-from drone_robot_adapter import BindingWatchdog, build_nexus_drone_signal
+import sys
+sys.path.insert(0, "Drone_Control_Foundation")   # DCF 패키지 경로
 
+from drone_control_foundation import (
+    DroneState, DroneSetpoint, DronePlatformSpec, GeofenceConfig,
+    build_drone_actuator_intent, run_control_tick,
+)
+from drone_robot_adapter import (
+    BindingWatchdog,
+    build_px4_command_envelope,
+    build_nexus_drone_signal,
+    render_nexus_drone_lines,
+)
+
+# 1. 센서 상태
+state = DroneState(pd_m=-8.0, battery_soc_0_1=0.82)
+
+# 2. 세트포인트
+setpoint = DroneSetpoint(mode="altitude_hold", altitude_m_above_home_target=10.0)
+
+# 3. DCF: 제어 계산
+result = run_control_tick(state, setpoint, DronePlatformSpec(), GeofenceConfig(), dt_s=0.02)
+
+# 4. 계약 경계 생성
+intent = build_drone_actuator_intent(
+    result.mixer,
+    mission_pause=result.arbitration.mission_pause,
+    estop_recommended=result.arbitration.disarm_recommended,
+    step_id="hover_tick0",
+    flow_id="mission_alpha",
+)
+
+# 5. DRA: PX4 envelope
+px4_env = build_px4_command_envelope(intent)
+print(f"PX4 thrust: {px4_env.thrust_sp_0_1:.3f}, motors: {px4_env.actuator_controls_0_1}")
+
+# 6. DRA: watchdog + Nexus signal
 watchdog = BindingWatchdog(stale_after_s=1.0)
-watchdog.mark_heartbeat(10.0, transport="px4_actuator_controls")
-snap = watchdog.snapshot(10.4)
+watchdog.mark_heartbeat(0.0, transport="px4_actuator_controls")
 signal = build_nexus_drone_signal(
-    mission_pause=False,
-    estop_recommended=False,
-    binding_health=snap,
-    collective_0_1=0.61,
+    mission_pause=intent["mission_pause"],
+    estop_recommended=intent["estop_recommended"],
+    binding_health=watchdog.snapshot(0.3),
+    collective_0_1=intent["primary_output_0_1"],
 )
+for line in render_nexus_drone_lines(signal):
+    print(line)
 ```
 
-### Nexus 데모
+### 실행 가능 예제
 
 ```bash
+# DCF + DRA 통합 파이프라인 (3시나리오)
+python3 examples/run_dcf_dra_integration.py
+
+# DRA 단독: Nexus signal 브리핑
 python3 examples/run_nexus_drone_brief.py
+
+# DCF 단독: 센서→제어→배터리→HAL 스텁
+cd Drone_Control_Foundation && python3 examples/run_sensor_dcf_battery_stub.py
 ```
 
 ---
 
-## 활용성
+## 디렉터리 구조
 
-이 패키지는 다음 같은 경우에 바로 쓸 수 있다.
-
-- DCF에서 계산된 intent를 PX4/ArduPilot 쪽 제품층 envelope로 넘길 때
-- 시뮬레이터/하드웨어랩에서 `mission_pause`, `estop`, `flow_id` 같은 운용 필드를 보존하고 싶을 때
-- `Nexus`가 드론 상태를 한 줄 briefing으로 읽어야 할 때
-- 추후 private/vendor 패키지에서 실제 MAVLink/PWM/CAN 드라이버를 붙이기 전에 공통 경계를 고정하고 싶을 때
-
----
-
-## 확장 방향
-
-가장 자연스러운 다음 단계는 이 순서다.
-
-1. `PX4` / `ArduPilot` 실 transport stub 고도화
-2. `PWM` / `CAN ESC` envelope 추가
-3. watchdog에 link timeout / heartbeat jitter / reconnect 상태 추가
-4. `Nexus`에서 읽을 executive brief 포맷 확장
-5. private repository에서 실제 벤더 SDK 바인딩 구현
-
-중요한 점은, 이 확장은 **DCF 안이 아니라 이 패키지 위/안에서만** 진행돼야 한다는 것이다.
-
----
-
-## 무결성
-
-- [BLOCKCHAIN_INFO.md](BLOCKCHAIN_INFO.md)
-- [PHAM_BLOCKCHAIN_LOG.md](PHAM_BLOCKCHAIN_LOG.md)
-- [SIGNATURE.sha256](SIGNATURE.sha256)
-
-검증:
-
-```bash
-python3 scripts/verify_signature.py
+```text
+golden_Snitch/
+│
+├── Drone_Control_Foundation/               ← 제어 코어 (DCF)
+│   ├── drone_control_foundation/
+│   │   ├── contracts.py                    DroneState, DroneSetpoint, MixerIntent 등
+│   │   ├── arbiter.py                      안전 아비터 (지오펜스·배터리·estop)
+│   │   ├── control_tick.py                 한 틱 제어 파이프라인
+│   │   ├── mixer.py                        쿼드-X 믹서
+│   │   ├── reference_plant.py              참조 플랜트 (NED, ZYX 회전행렬)
+│   │   ├── robot_adapter.py                actuator intent 생성, StubDroneDriver
+│   │   ├── sensory_adapter.py              센서 snapshot → DroneState
+│   │   ├── battery_adapter.py              배터리 SOC 브리지
+│   │   ├── flight_bridges.py               대기·모핑 물리 브리지
+│   │   ├── health.py                       7축 Ω 건강도 옵저버
+│   │   └── surface.py                      JSON 틱 표면
+│   ├── tests/
+│   │   └── test_drone_control_foundation.py    29개
+│   ├── examples/
+│   └── README.md                           ← DCF 상세 문서
+│
+├── drone_robot_adapter/                    ← HAL 패키지 (DRA)
+│   ├── contracts.py                        PX4/ArduPilot/Nexus envelope 계약
+│   ├── px4_bridge.py                       PX4 transport envelope
+│   ├── ardupilot_bridge.py                 ArduPilot transport envelope
+│   ├── nexus_bridge.py                     Nexus signal 빌더
+│   └── watchdog.py                         BindingWatchdog
+│
+├── docs/
+│   ├── PX4_ARDUPILOT_MAPPING.md            벤더 필드 매핑 표
+│   └── NEXUS_CONSUMPTION.md                Nexus 연결 방향
+│
+├── examples/
+│   ├── run_dcf_dra_integration.py          ★ DCF+DRA 통합 데모 (3시나리오)
+│   └── run_nexus_drone_brief.py            DRA 단독 Nexus 데모
+│
+├── tests/
+│   ├── test_dcf_dra_integration.py         ★ 통합 테스트 24개
+│   └── test_drone_robot_adapter.py         DRA 단독 테스트
+│
+├── scripts/
+│   ├── regenerate_signature.py
+│   ├── verify_signature.py
+│   ├── release_check.py
+│   └── cleanup_generated.py
+│
+├── BLOCKCHAIN_INFO.md
+├── CHANGELOG.md
+├── PHAM_BLOCKCHAIN_LOG.md
+├── SIGNATURE.sha256
+├── VERSION                                 0.1.6
+└── pyproject.toml
 ```
 
-릴리스 점검:
+---
 
-```bash
-python3 scripts/release_check.py
-```
+## Drone_Control_Foundation (DCF)
+
+| 기능 | 설명 |
+|------|------|
+| **안전 아비터** | 지오펜스 이탈 → `mission_pause + torque_scale` (호버/복구 권한 유지) |
+| **제어 루프** | 고도·요·수평 PD 제어, `dt_s` 기반 적분 |
+| **쿼드-X 믹서** | roll/pitch/yaw 토크 + collective → 4축 모터 [0, 1] |
+| **참조 플랜트** | NED 좌표계, ZYX 회전행렬 기반 6DOF 수평 가속 |
+| **센서 브리지** | `drone_state_from_snapshot()` — sensory snapshot → DroneState |
+| **배터리 브리지** | 전력·전류 추정, SOC 갱신 |
+| **대기 브리지** | `patch_spec_from_air_jordan()` — 고도별 밀도·중력 반영 |
+| **건강도 옵저버** | 7축 Ω: safety·motion·flow·power·navigation·authority·motor_sat |
+| **JSON 표면** | `run_drone_tick()` — dict 입출력, FCU 통합 가능 |
+
+비행 모드:
+
+| 모드 | 동작 |
+|------|------|
+| `disarmed` | 추력 차단 완전 |
+| `altitude_hold` | 고도·요 유지 |
+| `position_hold` | N/E 목표 추종 (소각도 롤·피치 명령) |
 
 ---
 
-## 정본 문서
+## Drone_Robot_Adapter (DRA)
 
-루트 README는 개요다. 실제 제품 판단에는 아래 두 문서를 우선 기준으로 읽는 것이 좋다.
+| 컴포넌트 | 출력 |
+|----------|------|
+| `build_px4_command_envelope()` | `PX4CommandEnvelope` — thrust_sp, actuator_controls[4] |
+| `build_ardupilot_command_envelope()` | `ArduPilotCommandEnvelope` — collective, motor_outputs[4] |
+| `build_nexus_drone_signal()` | `DroneAdapterNexusSignal` — 상위 orchestration 브리핑 |
+| `render_nexus_drone_lines()` | 브리핑 → 텍스트 목록 |
+| `BindingWatchdog` | heartbeat 추적, stale/degraded 감지 |
 
-- [docs/PX4_ARDUPILOT_MAPPING.md](docs/PX4_ARDUPILOT_MAPPING.md)
-- [docs/NEXUS_CONSUMPTION.md](docs/NEXUS_CONSUMPTION.md)
+DRA가 하지 않는 것: 실제 MAVLink 연결, PWM/CAN 전송, 비행 제어 계산, 센서 융합.
 
 ---
 
 ## 테스트
 
 ```bash
-# 어댑터 (루트)
-python3 -m pytest tests/ -q
+# DRA + 통합 (28개)
+python3 -m pytest tests/ -v
 
-# DCF — `Robot_Adapter_Core` 설치 후 (Drone_Control_Foundation/README.md 참고)
-# (cd Drone_Control_Foundation && python3 -m pytest tests/ -q)
-
-python3 examples/run_nexus_drone_brief.py
+# DCF 단독 (29개)
+cd Drone_Control_Foundation && python3 -m pytest tests/ -v
 ```
+
+| 파일 | 범위 | 통과 |
+|------|------|------|
+| `tests/test_dcf_dra_integration.py` | 계약·PX4·ArduPilot·pause전파·Nexus·disarmed | **24** |
+| `tests/test_drone_robot_adapter.py` | DRA 단독 | **4** |
+| `Drone_Control_Foundation/tests/…` | DCF 단독 | **29** |
 
 ---
 
-## 번들 메타
+## Nexus와의 관계
 
-루트 `VERSION` / `pyproject.toml` 은 **어댑터 패키지** 기준이다. DCF 버전은 `Drone_Control_Foundation/VERSION` 을 본다.
+DRA는 Nexus의 제어기가 아니다. Nexus는 상위 orchestration이고,
+DRA는 드론 runtime 상태를 읽기 좋은 외부 신호로만 요약한다.
 
-`0.1.5` — **golden_Snitch = DCF + Drone_Robot_Adapter** 를 한 저장소에 포함; README 정본 정리.
+→ [`docs/NEXUS_CONSUMPTION.md`](docs/NEXUS_CONSUMPTION.md)
+
+---
+
+## Watchdog 상태
+
+| 상태 | 조건 | 의미 |
+|------|------|------|
+| healthy | `link_alive=True`, 하트비트 신선 | 바인딩 정상 |
+| stale | `heartbeat_age_s > stale_after_s` | 하트비트 지연 |
+| degraded | `driver_fault=True` 또는 `link_alive=False` | transport 이상 |
+
+---
+
+## 무결성
+
+```bash
+python3 scripts/verify_signature.py    # 검증
+python3 scripts/regenerate_signature.py # 재생성 (릴리스 시)
+```
+
+| 파일 | 역할 |
+|------|------|
+| [`SIGNATURE.sha256`](SIGNATURE.sha256) | 전 파일 SHA-256 매니페스트 |
+| [`BLOCKCHAIN_INFO.md`](BLOCKCHAIN_INFO.md) | 무결성 체계 설명 |
+| [`PHAM_BLOCKCHAIN_LOG.md`](PHAM_BLOCKCHAIN_LOG.md) | 릴리스 연속 기록 |
+
+---
+
+## 확장 방향
+
+1. PX4 / ArduPilot 실 MAVLink transport stub 고도화
+2. PWM / CAN ESC envelope 추가
+3. watchdog: heartbeat jitter / reconnect 상태 추가
+4. Nexus executive brief 포맷 확장
+5. private repo에서 실제 벤더 SDK 바인딩 구현
+
+**원칙:** 확장은 항상 DRA 위에서만. DCF 내부를 건드리지 않는다.

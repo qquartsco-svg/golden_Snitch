@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+- **DCF→DRA 통합 파이프라인 완성**: `examples/run_dcf_dra_integration.py` — DroneState → DCF 틱 → actuator intent → PX4/ArduPilot/Nexus 3시나리오 완전 동작.
+- **통합 테스트 24개 추가**: `tests/test_dcf_dra_integration.py` — §1 계약 경계, §2 PX4, §3 ArduPilot, §4 지오펜스→mission_pause 전파, §5 Nexus/Watchdog, §6 disarmed 전구간 검증.
+- `tests/conftest.py`: Robot_Adapter_Core 경로 자동 주입으로 통합 환경 완전 지원.
+- SIGNATURE.sha256 재생성 (0.1.6 릴리스 무결성 반영).
+- README 전면 개정: 두 레이어 통합 아키텍처, 계약 경계, 통합 예제 실행 방법 명시.
+
 ## 0.1.5
 
 - **golden_Snitch = DCF + Drone_Robot_Adapter**: `Drone_Control_Foundation/` 트리를 **Git에 포함**해 한 저장소로 푸시 (이전엔 로컬만 있고 커밋 안 된 상태였음).
