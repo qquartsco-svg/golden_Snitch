@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.7
+
+- 루트 `README` 보강:
+  - 핵심 개념
+  - 활용성
+  - 확장 경로
+  - 문서 읽기 순서
+  - watchdog 건강도 기준
+- `README_EN.md` 추가
+- `.gitignore`에 스크린샷 패턴 추가로 저장소 위생 보강
+
 ## 0.1.6
 
 - **DCF→DRA 통합 파이프라인 완성**: `examples/run_dcf_dra_integration.py` — DroneState → DCF 틱 → actuator intent → PX4/ArduPilot/Nexus 3시나리오 완전 동작.

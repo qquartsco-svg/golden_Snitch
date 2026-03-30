@@ -1,12 +1,31 @@
 # golden_Snitch
 
 **저장소:** [`qquartsco-svg/golden_Snitch`](https://github.com/qquartsco-svg/golden_Snitch)
-**버전:** 0.1.6
+**버전:** 0.1.7
 **구성:** `Drone_Control_Foundation` (제어 코어) + `Drone_Robot_Adapter` (HAL)
+**영문 개요:** [`README_EN.md`](README_EN.md)
 
 > **한 저장소, 두 레이어.**
 > 드론 제어 연산과 하드웨어 바인딩을 명확한 계약 경계로 분리한다.
 > DCF가 "무엇을 해야 하는가"를 계산하고, DRA가 "어떻게 전달하는가"를 처리한다.
+
+---
+
+## 핵심 개념
+
+`golden_Snitch`는 드론 하나의 거대한 패키지가 아니라, 아래 두 층을 한 저장소 안에서 함께 관리하는 구조다.
+
+1. **Drone_Control_Foundation (DCF)**
+   - 드론이 현재 상태에서 어떤 추력/토크를 내야 하는지 계산하는 제어 코어
+2. **Drone_Robot_Adapter (DRA)**
+   - 그 계산 결과를 PX4, ArduPilot, PWM, CAN 같은 실제 transport 표현으로 번역하는 제품층 HAL
+
+이 분리는 단순한 코드 스타일 문제가 아니다.
+
+- 제어 로직이 벤더 SDK에 오염되지 않는다.
+- FCU를 바꿔도 DCF는 다시 튜닝하지 않고 유지할 수 있다.
+- 감사/audit에서는 `의도 계산`과 `전달 계층`을 따로 검증할 수 있다.
+- 상위 orchestration(`TAM`, `Nexus`)은 하위 구현 세부 대신 계약과 health만 읽으면 된다.
 
 ---
 
@@ -55,6 +74,14 @@ DCF는 DRA 내부를 모르고, DRA는 DCF 제어 로직을 모른다.
 | `step_id` | 보존 | 스텝/시퀀스 식별자 (운용 추적) |
 | `flow_id` | 보존 | 플로우/세션 식별자 (감사) |
 | `transport_hint` | 선택 | 하위 벤더 바인딩 참고용 transport 힌트 |
+
+이 표의 의미는 간단하다.
+
+- **DCF는 이 dict까지만 책임진다.**
+- **DRA는 이 dict부터 아래를 책임진다.**
+- 실제 FCU/ESC SDK는 그 다음 층에서만 다룬다.
+
+즉 이 dict가 두 레이어 사이의 유일한 합의면이다.
 
 ---
 
@@ -229,6 +256,16 @@ golden_Snitch/
 
 DRA가 하지 않는 것: 실제 MAVLink 연결, PWM/CAN 전송, 비행 제어 계산, 센서 융합.
 
+### Watchdog 건강도 기준
+
+| 상태 | 기준 | 의미 |
+|------|------|------|
+| `healthy` | heartbeat가 `stale_after_s` 이내, driver fault 없음 | 바인딩 생존, 상위 보고 정상 |
+| `stale` | heartbeat age 초과 | 링크는 있었지만 현재 신선하지 않음 |
+| `degraded` | driver fault 또는 transport 불일치/불명확 | 즉시 상위 보고 및 복구 절차 권장 |
+
+이 기준은 `Nexus`나 운영 대시보드가 "지금 드론이 날 수 있는가"가 아니라, "제어 의도가 제품층에서 제대로 전달되고 있는가"를 읽기 위한 신호다.
+
 ---
 
 ## 테스트
@@ -249,12 +286,63 @@ cd Drone_Control_Foundation && python3 -m pytest tests/ -v
 
 ---
 
+## 활용성
+
+이 저장소는 단순 연구용 샘플보다 조금 더 실전적인 위치를 겨냥한다.
+
+- **민수/연구용 드론 제어 스택 분리**
+  - 제어 코어와 하드웨어 바인딩을 분리한 채 제품화 가능
+- **벤더 교체 내성**
+  - PX4에서 ArduPilot로 넘어가도 DCF를 다시 짜지 않는다
+- **시뮬레이션/실기 간 공통 경계 유지**
+  - DCF의 출력은 동일한 `actuator intent`이고, DRA만 달라진다
+- **상위 시스템 통합**
+  - `Transformable_Air_Mobility_Stack`, `Nexus`, 배터리/센서/형상 엔진이 읽기 좋은 형태로 연결 가능
+- **감사와 안전 분석**
+  - step/flow 식별자, mission pause, estop 권고가 끝까지 보존된다
+
+---
+
+## 확장 경로
+
+현재 `golden_Snitch`는 **제어 코어 + HAL 계약 + 제품층 스캐폴드**까지 닫힌 상태다. 다음 확장은 아래 순서가 자연스럽다.
+
+1. **실제 vendor binding**
+   - PX4 MAVLink message binding
+   - ArduPilot motor/servo output binding
+   - PWM/CAN ESC transport stub
+2. **binding health 강화**
+   - watchdog에 driver-side diagnostics 추가
+   - heartbeat 외 timeout/fault taxonomy 분리
+3. **운영 계층 강화**
+   - `Nexus` executive brief 확대
+   - adapter fault와 mission blocker 연결
+4. **하드웨어 검증 루프**
+   - bench HIL/SIL
+   - FCU SITL
+   - transport replay / audit trace
+
+즉 이 저장소는 "바로 실기 송신기"가 아니라, **실기 제품층으로 자라기 위한 안정된 경계면**이다.
+
+---
+
 ## Nexus와의 관계
 
 DRA는 Nexus의 제어기가 아니다. Nexus는 상위 orchestration이고,
 DRA는 드론 runtime 상태를 읽기 좋은 외부 신호로만 요약한다.
 
 → [`docs/NEXUS_CONSUMPTION.md`](docs/NEXUS_CONSUMPTION.md)
+
+---
+
+## 어떤 문서를 먼저 읽어야 하나
+
+- 전체 구조와 철학: [`README.md`](README.md)
+- 제어 코어 상세: [`Drone_Control_Foundation/README.md`](Drone_Control_Foundation/README.md)
+- PX4/ArduPilot 필드 매핑: [`docs/PX4_ARDUPILOT_MAPPING.md`](docs/PX4_ARDUPILOT_MAPPING.md)
+- Nexus 소비 방향: [`docs/NEXUS_CONSUMPTION.md`](docs/NEXUS_CONSUMPTION.md)
+
+실무적으로는 루트 README가 개요이고, 실제 제품층 판단은 `docs/` 두 문서와 DCF README를 함께 보는 것이 가장 정확하다.
 
 ---
 

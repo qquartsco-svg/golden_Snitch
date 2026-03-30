@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 Drone_Control_Foundation/.pytest_cache/
 Drone_Control_Foundation/**/__pycache__/
+스크린샷 *.png
+스크린샷 *.jpg
+스크린샷 *.jpeg
