@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- **중요:** 로컬 `git` 원격 `origin` 이 실수로 `Drone_Control_Foundation` 을 가리키면 어댑터 커밋이 DCF로 푸시되어 GitHub에 반영되지 않는다. 공개 저장소는 **`qquartsco-svg/golden_Snitch`** — `git remote set-url origin https://github.com/qquartsco-svg/golden_Snitch.git`.
+- README / PHAM: 위 정본 반영.
+
 ## 0.1.3
 
 - README: 로컬 절대 경로(`/Users/...`) 제거 → 저장소 상대 링크 + GitHub 공개 쌍(`Drone_Control_Foundation` · `Drone_Robot_Adapter`) 안내.

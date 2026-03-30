@@ -1,10 +1,10 @@
 # Drone_Robot_Adapter
 
 > **한국어 (정본).**
-> **v0.1.3** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
+> **v0.1.4** · Python 3.9+ · 의존: `Robot_Adapter_Core`, `Drone_Control_Foundation`
 
-**GitHub 공개 쌍 (정렬):** 제어 코어 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) · 본 HAL 어댑터 [Drone_Robot_Adapter](https://github.com/qquartsco-svg/Drone_Robot_Adapter)  
-*(과거 로컬 원격이 `golden_Snitch` 등으로 꼬여 있으면 `git remote -v` 확인 후 `origin` 을 위 저장소로 맞출 것.)*
+**GitHub 공개 저장소:** 이 패키지 코드는 저장소 **[qquartsco-svg/golden_Snitch](https://github.com/qquartsco-svg/golden_Snitch)** 에 올린다. (로컬 폴더명 `Drone_Robot_Adapter` 와 다를 수 있음.)  
+제어 코어(DCF)는 별도 저장소 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) — `git remote -v` 로 **어댑터 폴더의 `origin` 이 `golden_Snitch` 인지** 반드시 확인할 것. `Drone_Control_Foundation` 으로 잡혀 있으면 푸시가 꼬인다.
 
 이 패키지는 [Drone_Control_Foundation](https://github.com/qquartsco-svg/Drone_Control_Foundation) 이보내는
 `MixerIntent` / actuator intent를 **실제 벤더 FCU/ESC transport 계층**으로 연결하는
@@ -268,4 +268,4 @@ python3 examples/run_nexus_drone_brief.py
 
 ## 버전
 
-`0.1.3` — README/GitHub 링크 복구, 공개 원격 저장소명 정렬(`Drone_Robot_Adapter`).
+`0.1.4` — `origin` 을 실제 공개 저장소 `golden_Snitch` 로 고정, README·PHAM 정본.
